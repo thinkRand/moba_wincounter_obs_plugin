@@ -110,6 +110,12 @@ build() {
     typeset -gx CODESIGN_TEAM="$(print "${CODESIGN_IDENT}" | /usr/bin/sed -En 's/.+\((.+)\)/\1/p')"
   }
 
+  print '::group::Detect Architecture'
+  local host_arch="$(uname -m)"
+  print "Host architecture: ${host_arch}"
+  cmake_args+=(-DCMAKE_OSX_ARCHITECTURES="${host_arch}")
+  print '::endgroup::'
+
   print '::group::Locate OpenCV'
   local opencv_prefix="$(brew --prefix opencv 2>/dev/null)"
   if [[ -n ${opencv_prefix} ]] && [[ -d "${opencv_prefix}/lib/cmake/opencv4" ]]; then
@@ -139,9 +145,7 @@ build() {
   }
 
   local -a build_args=(
-    ONLY_ACTIVE_ARCH=NO
-    -arch arm64
-    -arch x86_64
+    ONLY_ACTIVE_ARCH=YES
     -project ${product_name}.xcodeproj
     -target ${product_name}
     -destination "generic/platform=macOS,name=Any Mac"
