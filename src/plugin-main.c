@@ -20,8 +20,7 @@ struct plugin_state g_state = {0};
 
 static void update_text_sources(void);
 static void deferred_init_text_sources(void *param);
-static int try_extract_count(const char *label, const char *text,
-			     const char *token);
+static int try_extract_count(const char *label, const char *text, const char *token);
 
 static inline long atomic_read(volatile long *ptr)
 {
@@ -36,8 +35,7 @@ static void on_raw_video_frame(void *param, struct video_data *frame)
 		return;
 
 	if (!g_state.counts_loaded)
-		obs_queue_task(OBS_TASK_UI, deferred_init_text_sources, NULL,
-			       false);
+		obs_queue_task(OBS_TASK_UI, deferred_init_text_sources, NULL, false);
 
 	uint64_t now_ms = frame->timestamp / 1000000;
 	if (now_ms - g_state.last_process_ts < 1000)
@@ -50,13 +48,17 @@ static void on_raw_video_frame(void *param, struct video_data *frame)
 	if (!y_plane || g_state.base_width <= 0 || g_state.base_height <= 0)
 		return;
 
-	worker_push_frame(g_state.worker, y_plane,
-			  g_state.base_width, g_state.base_height, stride,
-			  frame->timestamp);
+	worker_push_frame(g_state.worker, y_plane, g_state.base_width, g_state.base_height, stride, frame->timestamp);
 }
 
-bool plugin_is_counts_loaded(void) { return g_state.counts_loaded; }
-void plugin_set_counts_loaded(bool loaded) { g_state.counts_loaded = loaded; }
+bool plugin_is_counts_loaded(void)
+{
+	return g_state.counts_loaded;
+}
+void plugin_set_counts_loaded(bool loaded)
+{
+	g_state.counts_loaded = loaded;
+}
 
 static void deferred_init_text_sources(void *param)
 {
@@ -83,8 +85,8 @@ void plugin_set_language_key(const char *key)
 	g_state.language_key[sizeof(g_state.language_key) - 1] = '\0';
 	if (g_state.detector) {
 		detector_select_language(g_state.detector, key);
-		obs_log(LOG_INFO, "language changed to '%s', game='%s'",
-			key, detector_get_current_game(g_state.detector));
+		obs_log(LOG_INFO, "language changed to '%s', game='%s'", key,
+			detector_get_current_game(g_state.detector));
 	}
 }
 
@@ -109,29 +111,25 @@ void plugin_set_filter_source(obs_source_t *source)
 
 void plugin_set_victory_source(const char *name)
 {
-	strncpy(g_state.victory_source_name, name ? name : "",
-		sizeof(g_state.victory_source_name) - 1);
+	strncpy(g_state.victory_source_name, name ? name : "", sizeof(g_state.victory_source_name) - 1);
 	g_state.victory_source_name[sizeof(g_state.victory_source_name) - 1] = '\0';
 }
 
 void plugin_set_defeat_source(const char *name)
 {
-	strncpy(g_state.defeat_source_name, name ? name : "",
-		sizeof(g_state.defeat_source_name) - 1);
+	strncpy(g_state.defeat_source_name, name ? name : "", sizeof(g_state.defeat_source_name) - 1);
 	g_state.defeat_source_name[sizeof(g_state.defeat_source_name) - 1] = '\0';
 }
 
 void plugin_set_victory_label(const char *label)
 {
-	strncpy(g_state.victory_label, label ? label : "",
-		sizeof(g_state.victory_label) - 1);
+	strncpy(g_state.victory_label, label ? label : "", sizeof(g_state.victory_label) - 1);
 	g_state.victory_label[sizeof(g_state.victory_label) - 1] = '\0';
 }
 
 void plugin_set_defeat_label(const char *label)
 {
-	strncpy(g_state.defeat_label, label ? label : "",
-		sizeof(g_state.defeat_label) - 1);
+	strncpy(g_state.defeat_label, label ? label : "", sizeof(g_state.defeat_label) - 1);
 	g_state.defeat_label[sizeof(g_state.defeat_label) - 1] = '\0';
 }
 
@@ -147,8 +145,7 @@ void plugin_set_manual_losses(int losses)
 	update_text_sources();
 }
 
-static void replace_token(char *out, size_t out_sz,
-			  const char *tmpl, const char *token, int value)
+static void replace_token(char *out, size_t out_sz, const char *tmpl, const char *token, int value)
 {
 	const char *pos = strstr(tmpl, token);
 	if (!pos) {
@@ -162,8 +159,7 @@ static void replace_token(char *out, size_t out_sz,
 		return;
 	}
 	memcpy(out, tmpl, prefix_len);
-	int written = snprintf(out + prefix_len, out_sz - prefix_len,
-			       "%d", value);
+	int written = snprintf(out + prefix_len, out_sz - prefix_len, "%d", value);
 	if (written < 0)
 		return;
 	size_t remaining = out_sz - prefix_len - (size_t)written;
@@ -184,9 +180,8 @@ static void push_text(obs_source_t *source, const char *text)
 
 // ——— Victory/defeat helpers (factor out copy-paste) ———
 
-static void update_single_source(const char *source_name, const char *label,
-                                 const char *tok1, long val1,
-                                 const char *tok2, long val2)
+static void update_single_source(const char *source_name, const char *label, const char *tok1, long val1,
+				 const char *tok2, long val2)
 {
 	if (!source_name[0] || !label[0])
 		return;
@@ -201,10 +196,8 @@ static void update_single_source(const char *source_name, const char *label,
 	}
 }
 
-static void ensure_single_source(const char *source_name, const char *label,
-                                 const char *tok_primary,
-                                 const char *tok_secondary,
-                                 const char *log_label)
+static void ensure_single_source(const char *source_name, const char *label, const char *tok_primary,
+				 const char *tok_secondary, const char *log_label)
 {
 	if (!source_name[0] || !label[0])
 		return;
@@ -214,25 +207,21 @@ static void ensure_single_source(const char *source_name, const char *label,
 	obs_data_t *s = obs_source_get_settings(src);
 	if (s) {
 		const char *text = obs_data_get_string(s, "text");
-		if (!text || !text[0] ||
-		    try_extract_count(label, text, tok_primary) < 0) {
+		if (!text || !text[0] || try_extract_count(label, text, tok_primary) < 0) {
 			char tmp[256];
 			replace_token(tmp, sizeof(tmp), label, tok_primary, 0);
 			char final[256];
 			replace_token(final, sizeof(final), tmp, tok_secondary, 0);
 			push_text(src, final);
-			obs_log(LOG_INFO,
-				"wrote default %s text: '%s'",
-				log_label, final);
+			obs_log(LOG_INFO, "wrote default %s text: '%s'", log_label, final);
 		}
 		obs_data_release(s);
 	}
 	obs_source_release(src);
 }
 
-static void read_single_count(const char *source_name, const char *label,
-                              const char *token, volatile long *counter,
-                              const char *count_label)
+static void read_single_count(const char *source_name, const char *label, const char *token, volatile long *counter,
+			      const char *count_label)
 {
 	if (!source_name[0] || !label[0])
 		return;
@@ -247,9 +236,8 @@ static void read_single_count(const char *source_name, const char *label,
 			if (v >= 0) {
 				atomic_store_long(counter, v);
 			} else {
-				obs_log(LOG_WARNING,
-					"Can't extract %s: source='%s' label='%s' text='%s'",
-					count_label, source_name, label, text);
+				obs_log(LOG_WARNING, "Can't extract %s: source='%s' label='%s' text='%s'", count_label,
+					source_name, label, text);
 			}
 		}
 		obs_data_release(s);
@@ -261,22 +249,17 @@ static void update_text_sources(void)
 {
 	long w = atomic_read(&g_state.wins);
 	long l = atomic_read(&g_state.losses);
-	update_single_source(g_state.victory_source_name, g_state.victory_label,
-			     "{w}", w, "{d}", l);
-	update_single_source(g_state.defeat_source_name, g_state.defeat_label,
-			     "{d}", l, "{w}", w);
+	update_single_source(g_state.victory_source_name, g_state.victory_label, "{w}", w, "{d}", l);
+	update_single_source(g_state.defeat_source_name, g_state.defeat_label, "{d}", l, "{w}", w);
 }
 
 void plugin_ensure_text_sources(void)
 {
-	ensure_single_source(g_state.victory_source_name, g_state.victory_label,
-			     "{w}", "{d}", "victory");
-	ensure_single_source(g_state.defeat_source_name, g_state.defeat_label,
-			     "{d}", "{w}", "defeat");
+	ensure_single_source(g_state.victory_source_name, g_state.victory_label, "{w}", "{d}", "victory");
+	ensure_single_source(g_state.defeat_source_name, g_state.defeat_label, "{d}", "{w}", "defeat");
 }
 
-static int try_extract_count(const char *label, const char *text,
-			     const char *token)
+static int try_extract_count(const char *label, const char *text, const char *token)
 {
 	if (!label || !text || !token)
 		return -1;
@@ -287,8 +270,7 @@ static int try_extract_count(const char *label, const char *text,
 	int found = 0;
 
 	while (*lp && pos < sizeof(fmt) - 8) {
-		if (lp[0] == '{' && lp[2] == '}' &&
-		    (lp[1] == 'w' || lp[1] == 'd')) {
+		if (lp[0] == '{' && lp[2] == '}' && (lp[1] == 'w' || lp[1] == 'd')) {
 			if (strncmp(lp, token, 3) == 0) {
 				memcpy(fmt + pos, "%d", 2);
 				pos += 2;
@@ -318,12 +300,9 @@ static int try_extract_count(const char *label, const char *text,
 void plugin_read_counts_from_sources(void)
 {
 	obs_log(LOG_INFO, "reading counts from text sources...");
-	read_single_count(g_state.victory_source_name, g_state.victory_label,
-			  "{w}", &g_state.wins, "wins");
-	read_single_count(g_state.defeat_source_name, g_state.defeat_label,
-			  "{d}", &g_state.losses, "losses");
-	obs_log(LOG_INFO, "read counts from text sources: w:%ld/l:%ld",
-		atomic_read(&g_state.wins),
+	read_single_count(g_state.victory_source_name, g_state.victory_label, "{w}", &g_state.wins, "wins");
+	read_single_count(g_state.defeat_source_name, g_state.defeat_label, "{d}", &g_state.losses, "losses");
+	obs_log(LOG_INFO, "read counts from text sources: w:%ld/l:%ld", atomic_read(&g_state.wins),
 		atomic_read(&g_state.losses));
 }
 
@@ -339,8 +318,7 @@ bool obs_module_load(void)
 	if (video) {
 		g_state.base_width = (int)video_output_get_width(video);
 		g_state.base_height = (int)video_output_get_height(video);
-		obs_log(LOG_INFO, "OBS base resolution: %dx%d",
-			g_state.base_width, g_state.base_height);
+		obs_log(LOG_INFO, "OBS base resolution: %dx%d", g_state.base_width, g_state.base_height);
 	}
 
 	const char *env_templates = getenv("MLBB_TEMPLATES_DIR");
@@ -350,8 +328,7 @@ bool obs_module_load(void)
 	} else {
 		templates_path = obs_module_file("templates");
 	}
-	obs_log(LOG_INFO, "Loading templates from: %s",
-		templates_path ? templates_path : "(null)");
+	obs_log(LOG_INFO, "Loading templates from: %s", templates_path ? templates_path : "(null)");
 
 	g_state.detector = detector_create(templates_path);
 	if (!g_state.detector) {
@@ -374,23 +351,16 @@ bool obs_module_load(void)
 				detector_select_game(g_state.detector, gk);
 				struct TemplateInfo vi, di;
 				detector_get_template_info(g_state.detector, &vi, &di);
-				obs_log(LOG_INFO,
-					"    [%d] '%s': victory=%dx%d %dkp, defeat=%dx%d %dkp",
-					gi, gk,
-					vi.width, vi.height, vi.keypoints,
-					di.width, di.height, di.keypoints);
+				obs_log(LOG_INFO, "    [%d] '%s': victory=%dx%d %dkp, defeat=%dx%d %dkp", gi, gk,
+					vi.width, vi.height, vi.keypoints, di.width, di.height, di.keypoints);
 			}
 		}
 		// Restore defaults
-		detector_select_language(g_state.detector,
-			detector_get_language_key(g_state.detector, 0));
-		detector_select_game(g_state.detector,
-			detector_get_game_key(g_state.detector, 0));
-		strncpy(g_state.language_key,
-			detector_get_current_language(g_state.detector),
+		detector_select_language(g_state.detector, detector_get_language_key(g_state.detector, 0));
+		detector_select_game(g_state.detector, detector_get_game_key(g_state.detector, 0));
+		strncpy(g_state.language_key, detector_get_current_language(g_state.detector),
 			sizeof(g_state.language_key) - 1);
-		obs_log(LOG_INFO, " active: lang='%s' game='%s'",
-			g_state.language_key,
+		obs_log(LOG_INFO, " active: lang='%s' game='%s'", g_state.language_key,
 			detector_get_current_game(g_state.detector));
 	}
 	if (templates_path)

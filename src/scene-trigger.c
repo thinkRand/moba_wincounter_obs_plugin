@@ -13,15 +13,13 @@ static volatile uint64_t s_anim_end_ms = 0;
 
 void trigger_set_victory_scene(const char *name)
 {
-	strncpy(s_victory_source, name ? name : "",
-		sizeof(s_victory_source) - 1);
+	strncpy(s_victory_source, name ? name : "", sizeof(s_victory_source) - 1);
 	s_victory_source[sizeof(s_victory_source) - 1] = '\0';
 }
 
 void trigger_set_defeat_scene(const char *name)
 {
-	strncpy(s_defeat_source, name ? name : "",
-		sizeof(s_defeat_source) - 1);
+	strncpy(s_defeat_source, name ? name : "", sizeof(s_defeat_source) - 1);
 	s_defeat_source[sizeof(s_defeat_source) - 1] = '\0';
 }
 
@@ -30,18 +28,16 @@ struct item_find {
 	bool visible;
 };
 
-static bool toggle_item_cb(obs_scene_t *scene, obs_sceneitem_t *item,
-			   void *param)
+static bool toggle_item_cb(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
 {
 	(void)scene;
 	struct item_find *f = (struct item_find *)param;
 	obs_source_t *src = obs_sceneitem_get_source(item);
 	const char *name = obs_source_get_name(src);
-	obs_log(LOG_INFO, "toggle_item_cb: checking item '%s' against target '%s'",
-		name ? name : "(null)", f->target_name);
+	obs_log(LOG_INFO, "toggle_item_cb: checking item '%s' against target '%s'", name ? name : "(null)",
+		f->target_name);
 	if (strcmp(name, f->target_name) == 0) {
-		obs_log(LOG_INFO, "toggle_item_cb: found match, setting visible=%d",
-			f->visible);
+		obs_log(LOG_INFO, "toggle_item_cb: found match, setting visible=%d", f->visible);
 		obs_sceneitem_set_visible(item, f->visible);
 		return false;
 	}
@@ -62,13 +58,14 @@ static void set_source_visible(const char *name, bool visible)
 	}
 	obs_scene_t *scene = obs_scene_from_source(cur);
 	if (!scene) {
-		obs_log(LOG_INFO, "set_source_visible: obs_scene_from_source() returned NULL (current scene is not a scene?)");
+		obs_log(LOG_INFO,
+			"set_source_visible: obs_scene_from_source() returned NULL (current scene is not a scene?)");
 		obs_source_release(cur);
 		return;
 	}
 
-	obs_log(LOG_INFO, "set_source_visible: name='%s' visible=%d current_scene='%s'",
-		name, visible, obs_source_get_name(cur));
+	obs_log(LOG_INFO, "set_source_visible: name='%s' visible=%d current_scene='%s'", name, visible,
+		obs_source_get_name(cur));
 
 	struct item_find f = {.target_name = name, .visible = visible};
 	obs_scene_enum_items(scene, toggle_item_cb, &f);
@@ -99,8 +96,7 @@ static void do_hide(void *param)
 	obs_log(LOG_INFO, "animations hidden");
 }
 
-static void queue_show(const char *name, const char *other_name,
-		       uint64_t now_ms)
+static void queue_show(const char *name, const char *other_name, uint64_t now_ms)
 {
 	if (!name || !name[0])
 		return;
@@ -111,8 +107,7 @@ static void queue_show(const char *name, const char *other_name,
 	strncpy(sp->name, name, sizeof(sp->name) - 1);
 	sp->name[sizeof(sp->name) - 1] = '\0';
 	if (other_name) {
-		strncpy(sp->other_name, other_name,
-			sizeof(sp->other_name) - 1);
+		strncpy(sp->other_name, other_name, sizeof(sp->other_name) - 1);
 		sp->other_name[sizeof(sp->other_name) - 1] = '\0';
 	}
 
