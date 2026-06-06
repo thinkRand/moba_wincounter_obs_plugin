@@ -11,14 +11,13 @@ extern "C" {
 
 struct plugin_state {
     void *detector;
+    void *worker;
     uint64_t last_process_ts;
     int processed_count;
     long wins;
     long losses;
     int base_width;
     int base_height;
-    enum MatchResult last_result;
-    uint64_t last_result_time_ms;
 
     // Text source configuration
     char victory_source_name[128];
@@ -34,6 +33,12 @@ struct plugin_state {
 
     // Whether counts have been loaded from text sources
     bool counts_loaded;
+
+    // Selected language key (e.g. "en", "es")
+    char language_key[32];
+
+    // Selected game key (e.g. "mlbb", "hok")
+    char game_key[32];
 };
 
 extern struct plugin_state g_state;

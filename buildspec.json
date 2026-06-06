@@ -36,8 +36,8 @@
             "bundleId": "com.example.plugintemplate-for-obs"
         }
     },
-    "name": "mlbb_stats",
-    "displayName": "Plugin Template for OBS",
+    "name": "moba_wincounter",
+    "displayName": "MOBA WinCounter",
     "version": "1.0.0",
     "author": "Your Name Here",
     "website": "https://example.com",

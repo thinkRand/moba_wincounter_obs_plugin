@@ -4,7 +4,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCO
 
 project(${_name} VERSION ${_version})
 
-option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
+option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" OFF)
 
 include(compilerconfig)
@@ -44,10 +44,11 @@ endif()
 find_package(OpenCV REQUIRED core imgproc features2d flann calib3d imgcodecs)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /W0)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.c)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/detector.cpp src/detector.h)
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/scene-trigger.c src/scene-trigger.h)
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/worker.h src/worker.cpp)
 
 # --- Distribution package ---
 if(MSVC)

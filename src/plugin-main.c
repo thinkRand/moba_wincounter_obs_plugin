@@ -1,27 +1,11 @@
-/*
-Plugin Name
-Copyright (C) <Year> <Developer> <Email Address>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program. If not, see <https://www.gnu.org/licenses/>
-*/
-
 #include <obs-module.h>
 #include <string.h>
-#include <intrin.h>
+#include "atomic_ops.h"
 #include "plugin-support.h"
 #include "plugin-filter.h"
 #include "detector.h"
+#include "scene-trigger.h"
+#include "worker.h"
 
 OBS_DECLARE_MODULE()
 
@@ -36,13 +20,12 @@ struct plugin_state g_state = {0};
 
 static void update_text_sources(void);
 static void deferred_init_text_sources(void *param);
-static void deferred_update_text_sources(void *param);
 static int try_extract_count(const char *label, const char *text,
 			     const char *token);
 
 static inline long atomic_read(volatile long *ptr)
 {
-	return _InterlockedCompareExchange(ptr, 0, 0);
+	return atomic_load_long(ptr);
 }
 
 static void on_raw_video_frame(void *param, struct video_data *frame)
@@ -67,40 +50,9 @@ static void on_raw_video_frame(void *param, struct video_data *frame)
 	if (!y_plane || g_state.base_width <= 0 || g_state.base_height <= 0)
 		return;
 
-	struct FrameMatchInfo match_info;
-	enum MatchResult result = detector_process_frame(g_state.detector, y_plane,
-							 g_state.base_width,
-							 g_state.base_height, stride,
-							 &match_info);
-	g_state.processed_count++;
-
-	if (result == MATCH_VICTORY || result == MATCH_DEFEAT) {
-		if (result == g_state.last_result) {
-			g_state.last_result_time_ms = now_ms;
-			return;
-		}
-
-		if ((now_ms - g_state.last_result_time_ms) > g_state.cooldown_ms) {
-			if (result == MATCH_VICTORY)
-				_InterlockedIncrement(&g_state.wins);
-			else
-				_InterlockedIncrement(&g_state.losses);
-
-			obs_queue_task(OBS_TASK_UI,
-				       deferred_update_text_sources, NULL,
-				       false);
-
-			g_state.last_result = result;
-			g_state.last_result_time_ms = now_ms;
-
-			obs_log(LOG_INFO,
-				"counted: w:%ld/l:%ld",
-				atomic_read(&g_state.wins),
-				atomic_read(&g_state.losses));
-		}
-	} else {
-		g_state.last_result = MATCH_UNKNOWN;
-	}
+	worker_push_frame(g_state.worker, y_plane,
+			  g_state.base_width, g_state.base_height, stride,
+			  frame->timestamp);
 }
 
 bool plugin_is_counts_loaded(void) { return g_state.counts_loaded; }
@@ -116,10 +68,38 @@ static void deferred_init_text_sources(void *param)
 	plugin_set_counts_loaded(true);
 }
 
-static void deferred_update_text_sources(void *param)
+void plugin_update_text_sources(void)
 {
-	UNUSED_PARAMETER(param);
 	update_text_sources();
+}
+
+void plugin_set_language_key(const char *key)
+{
+	if (!key || !key[0])
+		return;
+	if (strcmp(g_state.language_key, key) == 0)
+		return;
+	strncpy(g_state.language_key, key, sizeof(g_state.language_key) - 1);
+	g_state.language_key[sizeof(g_state.language_key) - 1] = '\0';
+	if (g_state.detector) {
+		detector_select_language(g_state.detector, key);
+		obs_log(LOG_INFO, "language changed to '%s', game='%s'",
+			key, detector_get_current_game(g_state.detector));
+	}
+}
+
+void plugin_set_game_key(const char *key)
+{
+	if (!key || !key[0])
+		return;
+	if (strcmp(g_state.game_key, key) == 0)
+		return;
+	strncpy(g_state.game_key, key, sizeof(g_state.game_key) - 1);
+	g_state.game_key[sizeof(g_state.game_key) - 1] = '\0';
+	if (g_state.detector) {
+		detector_select_game(g_state.detector, key);
+		obs_log(LOG_INFO, "active game changed to '%s'", key);
+	}
 }
 
 void plugin_set_filter_source(obs_source_t *source)
@@ -157,13 +137,13 @@ void plugin_set_defeat_label(const char *label)
 
 void plugin_set_manual_wins(int wins)
 {
-	_InterlockedExchange(&g_state.wins, wins);
+	atomic_store_long(&g_state.wins, wins);
 	update_text_sources();
 }
 
 void plugin_set_manual_losses(int losses)
 {
-	_InterlockedExchange(&g_state.losses, losses);
+	atomic_store_long(&g_state.losses, losses);
 	update_text_sources();
 }
 
@@ -251,7 +231,7 @@ static void ensure_single_source(const char *source_name, const char *label,
 }
 
 static void read_single_count(const char *source_name, const char *label,
-                              const char *token, long *counter,
+                              const char *token, volatile long *counter,
                               const char *count_label)
 {
 	if (!source_name[0] || !label[0])
@@ -265,7 +245,7 @@ static void read_single_count(const char *source_name, const char *label,
 		if (text && text[0]) {
 			int v = try_extract_count(label, text, token);
 			if (v >= 0) {
-				_InterlockedExchange(counter, v);
+				atomic_store_long(counter, v);
 			} else {
 				obs_log(LOG_WARNING,
 					"Can't extract %s: source='%s' label='%s' text='%s'",
@@ -353,7 +333,7 @@ bool obs_module_load(void)
 
 	g_state.cooldown_ms = COOLDOWN_MS;
 
-	obs_register_source(&mlbb_stats_filter_info);
+	obs_register_source(&moba_wincounter_info);
 
 	video_t *video = obs_get_video();
 	if (video) {
@@ -375,22 +355,48 @@ bool obs_module_load(void)
 
 	g_state.detector = detector_create(templates_path);
 	if (!g_state.detector) {
-		obs_log(LOG_ERROR, "detector creation failed");
+		obs_log(LOG_ERROR, "detector creation failed (no valid templates)");
 		if (templates_path)
 			bfree(templates_path);
 		return false;
 	}
+
 	{
-		struct TemplateInfo vi, di;
-		detector_get_template_info(g_state.detector, &vi, &di);
-		obs_log(LOG_INFO, " templates loaded: victory=%dx%d %dkp, defeat=%dx%d %dkp",
-			vi.width, vi.height, vi.keypoints,
-			di.width, di.height, di.keypoints);
+		int lang_count = detector_get_language_count(g_state.detector);
+		obs_log(LOG_INFO, "loaded %d language(s)", lang_count);
+		for (int li = 0; li < lang_count; li++) {
+			const char *lk = detector_get_language_key(g_state.detector, li);
+			detector_select_language(g_state.detector, lk);
+			int game_count = detector_get_game_count(g_state.detector);
+			obs_log(LOG_INFO, "  language '%s': %d game(s)", lk, game_count);
+			for (int gi = 0; gi < game_count; gi++) {
+				const char *gk = detector_get_game_key(g_state.detector, gi);
+				detector_select_game(g_state.detector, gk);
+				struct TemplateInfo vi, di;
+				detector_get_template_info(g_state.detector, &vi, &di);
+				obs_log(LOG_INFO,
+					"    [%d] '%s': victory=%dx%d %dkp, defeat=%dx%d %dkp",
+					gi, gk,
+					vi.width, vi.height, vi.keypoints,
+					di.width, di.height, di.keypoints);
+			}
+		}
+		// Restore defaults
+		detector_select_language(g_state.detector,
+			detector_get_language_key(g_state.detector, 0));
+		detector_select_game(g_state.detector,
+			detector_get_game_key(g_state.detector, 0));
+		strncpy(g_state.language_key,
+			detector_get_current_language(g_state.detector),
+			sizeof(g_state.language_key) - 1);
+		obs_log(LOG_INFO, " active: lang='%s' game='%s'",
+			g_state.language_key,
+			detector_get_current_game(g_state.detector));
 	}
 	if (templates_path)
 		bfree(templates_path);
 
-	g_state.last_result = MATCH_UNKNOWN;
+	g_state.worker = worker_create(g_state.detector, g_state.cooldown_ms);
 
 	obs_add_raw_video_callback(NULL, on_raw_video_frame, NULL);
 	obs_log(LOG_INFO, "raw video callback registered");
@@ -401,6 +407,8 @@ bool obs_module_load(void)
 void obs_module_unload(void)
 {
 	obs_remove_raw_video_callback(on_raw_video_frame, NULL);
+	worker_destroy(g_state.worker);
+	g_state.worker = NULL;
 	detector_destroy(g_state.detector);
 	g_state.detector = NULL;
 	obs_log(LOG_INFO, "plugin unloaded");
