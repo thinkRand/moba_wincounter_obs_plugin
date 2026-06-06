@@ -198,6 +198,7 @@ ${_usage_host:-}"
           -DQT_VERSION=${QT_VERSION:-6}
           -DCMAKE_BUILD_TYPE=${config}
           -DCMAKE_INSTALL_PREFIX=/usr
+          -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4/
         )
 
         local cmake_version
