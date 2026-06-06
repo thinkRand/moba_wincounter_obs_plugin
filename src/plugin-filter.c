@@ -41,6 +41,7 @@ void filter_destroy(void *data)
 
 const char *filter_get_name(void *type_data)
 {
+	UNUSED_PARAMETER(type_data);
 	return "MOBA WinCounter";
 }
 
@@ -96,6 +97,7 @@ static bool support_button_clicked(obs_properties_t *props, obs_property_t *prop
 
 static obs_properties_t *filter_get_properties(void *data)
 {
+	UNUSED_PARAMETER(data);
 	obs_properties_t *props = obs_properties_create();
 
 	obs_property_t *lang_list = obs_properties_add_list(props, "language_key", "Language", OBS_COMBO_TYPE_LIST,
