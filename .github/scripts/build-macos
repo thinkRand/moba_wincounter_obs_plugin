@@ -113,13 +113,13 @@ build() {
   print '::group::Locate OpenCV'
   local opencv_prefix="$(brew --prefix opencv 2>/dev/null)"
   if [[ -n ${opencv_prefix} ]] && [[ -d "${opencv_prefix}/lib/cmake/opencv4" ]]; then
-    typeset -gx OpenCV_DIR="${opencv_prefix}/lib/cmake/opencv4"
+    cmake_args+=(-DOpenCV_DIR="${opencv_prefix}/lib/cmake/opencv4")
   elif [[ -d "/opt/homebrew/lib/cmake/opencv4" ]]; then
-    typeset -gx OpenCV_DIR="/opt/homebrew/lib/cmake/opencv4"
+    cmake_args+=(-DOpenCV_DIR="/opt/homebrew/lib/cmake/opencv4")
   elif [[ -d "/usr/local/lib/cmake/opencv4" ]]; then
-    typeset -gx OpenCV_DIR="/usr/local/lib/cmake/opencv4"
+    cmake_args+=(-DOpenCV_DIR="/usr/local/lib/cmake/opencv4")
   fi
-  print "OpenCV_DIR=${OpenCV_DIR}"
+  print "OpenCV_DIR configured for cmake"
   print '::endgroup::'
 
   log_group "Configuring ${product_name}..."
