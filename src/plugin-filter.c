@@ -85,11 +85,11 @@ static bool support_button_clicked(obs_properties_t *props, obs_property_t *prop
 #elif defined(__APPLE__)
 	char cmd[512];
 	snprintf(cmd, sizeof(cmd), "open \"%s\"", url);
-	system(cmd);
+	(void)system(cmd);
 #else
 	char cmd[512];
 	snprintf(cmd, sizeof(cmd), "xdg-open \"%s\"", url);
-	system(cmd);
+	(void)system(cmd);
 #endif
 
 	return false;
