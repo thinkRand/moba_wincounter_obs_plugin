@@ -34,8 +34,10 @@ foreach($Utility in $UtilityFunctions) {
     . $Utility.FullName
 }
 
+$vcpkgRoot = if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { "C:\vcpkg" }
+$CmakeToolchain = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
+
 function Install-OpenCV {
-    $vcpkgRoot = if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { "C:\vcpkg" }
     $opencvDir = "$vcpkgRoot\installed\x64-windows\share\opencv4"
     if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
         Log-Group "Installing OpenCV via vcpkg (may take 15-30 min on first run)..."
@@ -63,7 +65,7 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}")
+    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DCMAKE_TOOLCHAIN_FILE=$CmakeToolchain")
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
 
