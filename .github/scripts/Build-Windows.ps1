@@ -26,6 +26,14 @@ if ( $PSVersionTable.PSVersion -lt '7.2.0' ) {
     exit 2
 }
 
+# Load utility functions at script scope
+$ScriptHome = $PSScriptRoot
+$UtilityFunctions = Get-ChildItem -Path "$PSScriptRoot/utils.pwsh/*.ps1" -Recurse
+foreach($Utility in $UtilityFunctions) {
+    Write-Debug "Loading $($Utility.FullName)"
+    . $Utility.FullName
+}
+
 function Install-OpenCV {
     $OpenCvDir = "C:\tools\opencv"
     if (-not (Test-Path -LiteralPath "$OpenCvDir\build\OpenCVConfig.cmake")) {
@@ -47,17 +55,9 @@ function Build {
         exit 2
     }
 
-    $ScriptHome = $PSScriptRoot
     $ProjectRoot = Resolve-Path -Path "$PSScriptRoot/../.."
 
     Install-OpenCV
-
-    $UtilityFunctions = Get-ChildItem -Path $PSScriptRoot/utils.pwsh/*.ps1 -Recurse
-
-    foreach($Utility in $UtilityFunctions) {
-        Write-Debug "Loading $($Utility.FullName)"
-        . $Utility.FullName
-    }
 
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
