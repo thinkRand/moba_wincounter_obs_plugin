@@ -34,36 +34,39 @@ foreach($Utility in $UtilityFunctions) {
     . $Utility.FullName
 }
 
-$vcpkgRoot = if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { "C:\vcpkg" }
-$VcpkgPrefix = "$vcpkgRoot\installed\x64-windows"
-
 function Install-OpenCV {
-    $opencvDir = "$vcpkgRoot\installed\x64-windows\share\opencv4"
-    if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
-        Log-Group "Installing OpenCV via vcpkg (may take 15-30 min on first run)..."
+    $opencvVersion = "4.13.0"
+    $exePath = "$env:TEMP\opencv-$opencvVersion-windows.exe"
+    $extractDir = "$env:TEMP\opencv-$opencvVersion"
+
+    if (-not (Test-Path "$extractDir\opencv\build\OpenCVConfig.cmake")) {
+        Log-Group "Downloading official OpenCV $opencvVersion (pre-built from opencv.org)..."
+        $url = "https://github.com/opencv/opencv/releases/download/$opencvVersion/opencv-$opencvVersion-windows.exe"
         $retries = 3
         $done = $false
         while (-not $done -and $retries -gt 0) {
-            & "$vcpkgRoot\vcpkg" install "opencv4:x64-windows" --no-print-usage
-            if ($LASTEXITCODE -eq 0) {
+            try {
+                Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing -ErrorAction Stop
                 $done = $true
-            } else {
+            } catch {
                 $retries--
                 if ($retries -gt 0) {
-                    Write-Warning "vcpkg install failed, retrying ($retries left)..."
+                    Write-Warning "Download failed, retrying ($retries left)..."
                     Start-Sleep -Seconds 10
+                } else {
+                    throw "Failed to download OpenCV from $url"
                 }
             }
         }
-        if (-not $done) {
-            throw "OpenCV installation via vcpkg failed after retries"
-        }
-        if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
-            throw "OpenCV installation via vcpkg failed: OpenCVConfig.cmake not found"
+        Log-Group "Extracting..."
+        # The exe is a 7z self-extracting archive. Use -o<dir> -y for silent extraction.
+        & $exePath -o"$extractDir" -y *>$null
+        if (-not (Test-Path "$extractDir\opencv\build\OpenCVConfig.cmake")) {
+            throw "OpenCV extraction failed: OpenCVConfig.cmake not found"
         }
         Log-Group
     }
-    $env:OpenCV_DIR = $opencvDir
+    $env:OpenCV_DIR = "$extractDir\opencv\build"
 }
 
 function Build {
@@ -81,7 +84,7 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DCMAKE_PREFIX_PATH=$VcpkgPrefix")
+    $CmakeArgs = @('--preset', "windows-ci-${Target}")
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
 

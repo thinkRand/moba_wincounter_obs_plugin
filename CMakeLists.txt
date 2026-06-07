@@ -35,16 +35,14 @@ if(ENABLE_QT)
 endif()
 
 if(NOT DEFINED OpenCV_DIR)
-  if(DEFINED ENV{CONDA_PREFIX})
-    set(OpenCV_DIR "$ENV{CONDA_PREFIX}/Library/cmake" CACHE PATH "OpenCV CMake config directory")
-  elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(OpenCV_DIR "/usr/lib/x86_64-linux-gnu/cmake/opencv4/" CACHE PATH "OpenCV CMake config directory")
   elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(OpenCV_DIR "/opt/homebrew/share/OpenCV" CACHE PATH "OpenCV CMake config directory")
   elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(OpenCV_DIR "C:/tools/opencv/build" CACHE PATH "OpenCV CMake config directory")
+    set(OpenCV_DIR "C:/opencv/build" CACHE PATH "OpenCV CMake config directory")
   else()
-    message(FATAL_ERROR "OpenCV_DIR not set. Set the OpenCV_DIR or CONDA_PREFIX environment variable.")
+    message(FATAL_ERROR "OpenCV_DIR not set. Download official OpenCV from https://opencv.org/releases/ and set -DOpenCV_DIR=<path>/build")
   endif()
 endif()
 find_package(OpenCV REQUIRED core imgproc features2d flann calib3d imgcodecs)
@@ -56,26 +54,52 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/detector.cpp src/detector.h)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/scene-trigger.c src/scene-trigger.h)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/worker.h src/worker.cpp)
 
-# --- Distribution package ---
+# --- Distribution package (Windows only) ---
 if(MSVC)
   set(PACKAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_package")
   set(PACKAGE_ZIP "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-windows-x64.zip")
 
-  get_filename_component(_OPENCV_BIN "${OpenCV_DIR}/../bin" ABSOLUTE)
   set(_OPENCV_DLL_SUFFIX "${OpenCV_VERSION_MAJOR}${OpenCV_VERSION_MINOR}${OpenCV_VERSION_PATCH}")
 
-  set(OPENCV_DLLS)
-  foreach(mod core imgproc features2d flann calib3d imgcodecs)
-    list(APPEND OPENCV_DLLS "${_OPENCV_BIN}/opencv_${mod}${_OPENCV_DLL_SUFFIX}.dll")
-  endforeach()
+  # Root OpenCV DLLs the plugin links against.
+  # Official pre-built OpenCV uses opencv_world (single DLL with all modules).
+  # Conda/vcpkg builds use separate module DLLs (opencv_core, opencv_imgproc, etc.).
+  set(OPENCV_ROOT_DLLS)
+  if(TARGET opencv_world)
+    # Official world build: get the single DLL path from the imported target
+    get_target_property(OPENCV_WORLD_DLL opencv_world IMPORTED_LOCATION_RELEASE)
+    if(OPENCV_WORLD_DLL)
+      set(OPENCV_ROOT_DLLS ${OPENCV_WORLD_DLL})
+      get_filename_component(_OPENCV_BIN "${OPENCV_WORLD_DLL}" DIRECTORY)
+    endif()
+  endif()
+  if(NOT OPENCV_ROOT_DLLS)
+    # Non-world build — construct individual module DLL paths
+    if(OpenCV_LIB_DIR)
+      get_filename_component(_OPENCV_BIN "${OpenCV_LIB_DIR}/../bin" ABSOLUTE)
+    else()
+      get_filename_component(_OPENCV_BIN "${OpenCV_DIR}/../bin" ABSOLUTE)
+    endif()
+    foreach(mod core imgproc features2d flann calib3d imgcodecs)
+      list(APPEND OPENCV_ROOT_DLLS "${_OPENCV_BIN}/opencv_${mod}${_OPENCV_DLL_SUFFIX}.dll")
+    endforeach()
+  endif()
+
+  # Copy only the OpenCV DLL(s) the plugin directly links against.
+  # Official world build (opencv_world4130.dll) has zero transitive non-system
+  # DLLs — just the single module DLL.  Conda/vcpkg builds produce separate
+  # module DLLs but no longer officially supported.
+  set(_PACKAGE_DLLS ${OPENCV_ROOT_DLLS})
+
 
   add_custom_target(package
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${PACKAGE_DIR}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_DIR}/obs-plugins/64bit"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_DIR}/bin/64bit"
     COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" "${PACKAGE_DIR}/obs-plugins/64bit/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "${PACKAGE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENCV_DLLS} "${PACKAGE_DIR}/obs-plugins/64bit/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_PACKAGE_DLLS} "${PACKAGE_DIR}/bin/64bit/"
     COMMAND powershell -Command "Compress-Archive -Path '${PACKAGE_DIR}\\*' -DestinationPath '${PACKAGE_ZIP}' -Force"
     COMMENT "Creating distribution package: ${CMAKE_PROJECT_NAME}-windows-x64.zip"
     VERBATIM
