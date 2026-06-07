@@ -41,9 +41,25 @@ function Install-OpenCV {
     $opencvDir = "$vcpkgRoot\installed\x64-windows\share\opencv4"
     if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
         Log-Group "Installing OpenCV via vcpkg (may take 15-30 min on first run)..."
-        & "$vcpkgRoot\vcpkg" install "opencv4:x64-windows" --no-print-usage
+        $retries = 3
+        $done = $false
+        while (-not $done -and $retries -gt 0) {
+            & "$vcpkgRoot\vcpkg" install "opencv4:x64-windows" --no-print-usage
+            if ($LASTEXITCODE -eq 0) {
+                $done = $true
+            } else {
+                $retries--
+                if ($retries -gt 0) {
+                    Write-Warning "vcpkg install failed, retrying ($retries left)..."
+                    Start-Sleep -Seconds 10
+                }
+            }
+        }
+        if (-not $done) {
+            throw "OpenCV installation via vcpkg failed after retries"
+        }
         if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
-            throw "OpenCV installation via vcpkg failed"
+            throw "OpenCV installation via vcpkg failed: OpenCVConfig.cmake not found"
         }
         Log-Group
     }
