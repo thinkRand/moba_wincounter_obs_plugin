@@ -26,6 +26,19 @@ if ( $PSVersionTable.PSVersion -lt '7.2.0' ) {
     exit 2
 }
 
+function Install-OpenCV {
+    $OpenCvDir = "C:\tools\opencv"
+    if (-not (Test-Path -LiteralPath "$OpenCvDir\build\OpenCVConfig.cmake")) {
+        Log-Group "Installing OpenCV via Chocolatey..."
+        choco install opencv --version=4.6.0 -y --no-progress
+        if (-not (Test-Path -LiteralPath "$OpenCvDir\build\OpenCVConfig.cmake")) {
+            throw "OpenCV installation failed: OpenCVConfig.cmake not found at $OpenCvDir\build"
+        }
+        Log-Group
+    }
+    $env:OpenCV_DIR = "$OpenCvDir\build"
+}
+
 function Build {
     trap {
         Pop-Location -Stack BuildTemp -ErrorAction 'SilentlyContinue'
@@ -36,6 +49,8 @@ function Build {
 
     $ScriptHome = $PSScriptRoot
     $ProjectRoot = Resolve-Path -Path "$PSScriptRoot/../.."
+
+    Install-OpenCV
 
     $UtilityFunctions = Get-ChildItem -Path $PSScriptRoot/utils.pwsh/*.ps1 -Recurse
 
