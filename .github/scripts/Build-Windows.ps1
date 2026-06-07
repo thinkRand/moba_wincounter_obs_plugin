@@ -35,7 +35,7 @@ foreach($Utility in $UtilityFunctions) {
 }
 
 $vcpkgRoot = if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { "C:\vcpkg" }
-$CmakeToolchain = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
+$VcpkgPrefix = "$vcpkgRoot\installed\x64-windows"
 
 function Install-OpenCV {
     $opencvDir = "$vcpkgRoot\installed\x64-windows\share\opencv4"
@@ -81,7 +81,7 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DCMAKE_TOOLCHAIN_FILE=$CmakeToolchain")
+    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DCMAKE_PREFIX_PATH=$VcpkgPrefix")
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
 
