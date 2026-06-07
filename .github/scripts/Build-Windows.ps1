@@ -35,16 +35,17 @@ foreach($Utility in $UtilityFunctions) {
 }
 
 function Install-OpenCV {
-    $OpenCvDir = "C:\tools\opencv"
-    if (-not (Test-Path -LiteralPath "$OpenCvDir\build\OpenCVConfig.cmake")) {
-        Log-Group "Installing OpenCV via Chocolatey..."
-        choco install opencv --version=4.6.0 -y --no-progress
-        if (-not (Test-Path -LiteralPath "$OpenCvDir\build\OpenCVConfig.cmake")) {
-            throw "OpenCV installation failed: OpenCVConfig.cmake not found at $OpenCvDir\build"
+    $vcpkgRoot = if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { "C:\vcpkg" }
+    $opencvDir = "$vcpkgRoot\installed\x64-windows\share\opencv4"
+    if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
+        Log-Group "Installing OpenCV via vcpkg (may take 15-30 min on first run)..."
+        & "$vcpkgRoot\vcpkg" install "opencv4[core,imgproc,features2d,flann,calib3d,imgcodecs]:x64-windows" --headless --no-print-usage
+        if (-not (Test-Path -LiteralPath "$opencvDir\OpenCVConfig.cmake")) {
+            throw "OpenCV installation via vcpkg failed"
         }
         Log-Group
     }
-    $env:OpenCV_DIR = "$OpenCvDir\build"
+    $env:OpenCV_DIR = $opencvDir
 }
 
 function Build {
