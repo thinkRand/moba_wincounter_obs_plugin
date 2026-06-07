@@ -48,6 +48,7 @@ function Package {
     $ProductVersion = $BuildSpec.version
 
     $OutputName = "${ProductName}-${ProductVersion}-windows-${Target}"
+    $BuildDir = "build_${Target}"
 
     $RemoveArgs = @{
         ErrorAction = 'SilentlyContinue'
@@ -55,17 +56,19 @@ function Package {
             "${ProjectRoot}/release/${ProductName}-*-windows-*.zip"
         )
     }
-
     Remove-Item @RemoveArgs
 
-    Log-Group "Archiving ${ProductName}..."
-    $CompressArgs = @{
-        Path = (Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}" -Exclude "${OutputName}*.*")
-        CompressionLevel = 'Optimal'
-        DestinationPath = "${ProjectRoot}/release/${OutputName}.zip"
-        Verbose = ($Env:CI -ne $null)
+    Log-Group "Creating distribution package for ${ProductName}..."
+    cmake --build "${ProjectRoot}/${BuildDir}" --config ${Configuration} --target package
+    if ($LASTEXITCODE -ne 0) {
+        throw "cmake package target failed"
     }
-    Compress-Archive -Force @CompressArgs
+
+    # cmake package target creates ${ProductName}-windows-x64.zip in the build dir
+    # with the correct OBS deployment layout (obs-plugins/64bit/, bin/64bit/, data/).
+    # Rename with version info and copy to release/ for artifact upload.
+    Copy-Item -Path "${ProjectRoot}/${BuildDir}/${ProductName}-windows-x64.zip" `
+              -Destination "${ProjectRoot}/release/${OutputName}.zip" -Force
     Log-Group
 }
 
