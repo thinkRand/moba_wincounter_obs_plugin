@@ -15,3 +15,5 @@ OBS plugin that tracks match outcomes for multiple MOBAs (MLBB, Honor of Kings, 
 Place `{game_key}_victory.png` and `{game_key}_defeat.png` in `data/templates/{lang}/`
 (e.g., `data/templates/en/mlbb_victory.png`). 
 
+## Sopport 
+Use my link on ko-fi.com/thinkRand to support the development
