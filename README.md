@@ -2,6 +2,8 @@
 
 OBS plugin that tracks match outcomes for multiple MOBAs (MLBB, Honor of Kings, etc.) by recognizing victory/defeat screens from video frames using OpenCV SIFT + FLANN + homography (RANSAC).
 
+Developed usin AI
+
 ## Features
 
 - SIFT-based template matching with FLANN + RANSAC homography
@@ -17,3 +19,4 @@ Place `{game_key}_victory.png` and `{game_key}_defeat.png` in `data/templates/{l
 
 ## Sopport 
 Use my link on ko-fi.com/thinkRand to support the development
+
