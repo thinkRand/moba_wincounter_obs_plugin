@@ -2,7 +2,7 @@
 
 OBS plugin that tracks match outcomes for multiple MOBAs (MLBB, Honor of Kings, etc.) by recognizing victory/defeat screens from video frames using OpenCV SIFT + FLANN + homography (RANSAC).
 
-Developed usin AI
+Developed using AI
 
 ## Features
 
